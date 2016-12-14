@@ -1,3 +1,74 @@
+####################################################################################
+# Assignment 5 - Machine Learning
+#
+# Nearest Neighbor
+#   Train Mode:
+#       No training is required for this mode
+#
+#   Test Mode:
+#       For each test image, distance (eucledian) with all training images is calculated
+#       The orientation of the image which has the least distance with the test image is 
+#       assigned to the test image.
+#       Accuracy is calulated by dividing correctly labelled images by total images in test set
+#
+# Adaboost
+#   Train Mode:
+#       1. Initialize weight = 1 / n (n: no of images)
+#       2. User provides the number of stumps. For each stump we consider all rotation.
+#       3. For every stump, we randomly choose 150 x, y cordinates. The hypothesis used is x > y. 
+#       4. For the 150 choosen cordinates we calculte the score, which gives us the correct
+#          classification count. Score and cordinates corresponding to maximum score is chosen.
+#       5. Now we calcute the beta value = e/(1-e) where e = (1 - score). 
+#       6. We also store the indices of correctly classified images.
+#       7. Accuracy is calculated for this stump as alpha = log (1/beta). This forms the 1st stump
+#       8. If we need to create more stumps the we update the weights of correctly classified images 
+#          by multiplying it with beta value and reapeat steps from 2-7. 
+#
+#   Testing Mode:
+#       1. We have a accuracy (confidence) matrix and a cordinate matrix
+#       2. For a test image, we calculate a voted majority by passing the input thriugh each stump
+#          and adding the accuracy for all the stumps which meet the base condition (x > y)
+#       3. We calculate this voted majority for each rotation.
+#       4. Rotation corr to maximum vote is assigned to the test image
+#       5. We calculate the accuracy by comparing the calculate rotation with the actual value for
+#          all test images.
+#
+# Neural Network
+#   Train Mode
+#       1. Inputs:
+#           Input Nodes : 192
+#           hidden layer: 1
+#           Hidden layer nodes: user input
+#           output nodes: 4
+#           Activation function: sigmoid function
+#       2. Each pixel value is divided by 255 to normalize it
+#       3. For 1st iteration, we initiliaze the weights randomly for both input and hidden layer
+#       4. Each input to the hidden layer node is calculated by taking summation of 
+#          (multiplication of each input pixel and its corr weight)
+#       5. We now pass it through the activation function and similarly the inputs for final output layer
+#          is calculated by taking the summation of (output of each activation function * corr weights)
+#       6. We now calulate the error at output node by subtracting the actual value from the caluated value
+#       7. We now propagate this error back to the input node
+#       8. Using this error, we update the weights for each layer
+#       9. we repeat this until the system converges i.e. the error is minimized.
+#       After experimenting, we have fixed the number of iterations to 3, since it gives the best accuracy
+#
+#   Test Mode
+#       1. Using the trained neural network, we calculate the most probable rotation for out input test image
+#       2. We pass the input image via the trained neural network.
+#       3. Each neuron in the output layer corr to a rotation
+#       4. We now take maximum of the four output values.
+#       5. The rotation corr to max value node is assigned as the final rotation to the test image
+#       6. Accuracy is calculated by checking the actual rotation of the image
+#
+# Confusion Matrix
+#   For each method we calculate the confusion matrix and print it at the end
+#
+# Output
+#   Please refer the output.txt file for confusion matrix and other details
+#
+####################################################################################
+
 from collections import defaultdict
 import sys
 from operator import sub
@@ -36,6 +107,7 @@ class orient:
             idx += 1
 
     def nearest(self, testFile):
+        fpOut = open("output.txt", 'w')
         fp = open(testFile, 'r')
         totalCount = 0
         correctCount = 0
@@ -65,6 +137,8 @@ class orient:
             if self.trainOrientD[maxIdx] == imageOrient:
                 correctCount += 1
             totalCount += 1
+            fpOut.write(imageName + " " + str(imageOrient) + "\n")
+        fpOut.close()
 
         print "Accuracy is:", (correctCount/float(totalCount)) * 100
 
@@ -107,7 +181,8 @@ class orient:
                 self.weightList[:]= [x/float(sumWeights) for x in self.weightList]
                 self.indicesList = []
             maxVal = float('-inf')
-            for i in range(0,500):
+            #for i in range(0,500):
+            for i in range(0,150):
                 totalCnt = 0
                 countRot = 0
                 countNonRot = 0
@@ -142,18 +217,20 @@ class orient:
             self.stumpCoordinateMatrix[rotInd][s] = (maxX,maxY)
                             
     def buildRotationMatrix(self,stumps):
+        print "Stumps:", stumps
+        print "Randomly generated: 5" 
         self.stumpAccuracyMatrix = [[0]*stumps for i in range(4)]
         self.stumpCoordinateMatrix = [[0]*stumps for i in range(4)]
         rot = [0,90,180,270]
         for r in range(0,len(rot)):
             self.adaboost(r,stumps)
                                    
-        print "stumps", stumps
         print "Confidence matrix is", self.stumpAccuracyMatrix
         print "CoordinateMatrix is", self.stumpCoordinateMatrix            
                         
     def testAdaboost(self,testFile,stumps):
         #print "In testAdaboost"
+        fpOut = open("output.txt", 'w')
         rot = [0,90,180,270]
         correctCount = 0
         totalCount = 0
@@ -186,6 +263,8 @@ class orient:
             if rotation == imageOrient:
                 correctCount += 1
             totalCount += 1
+            fpOut.write(imageName + " " + str(rotation) + "\n")
+        fpOut.close()
 
         print "Accuracy is:", (correctCount/float(totalCount)) * 100
 
@@ -303,6 +382,7 @@ class orient:
     def testNNet(self, testFile, hiddenNodeCnt, alpha, iterationCnt, inputNodeCnt, outputNodeCnt):
         rot = [0, 90, 180, 270]
         actD = {}
+        fpOut = open("output.txt", 'w')
         fp = open(testFile, 'r')
         totalCnt = 0
         accurateCnt = 0
@@ -336,6 +416,8 @@ class orient:
             if computedIdx == actualIdx:
                 accurateCnt += 1
 
+            fpOut.write(imageName + " " + str(rot[computedIdx]) + "\n")
+        fpOut.close()
             #print "Test " + str(totalCnt) + " done "
 
         print "Accuracy in test: " + "%.4f" % ((accurateCnt/float(totalCnt))*100.0) + "%"
@@ -348,15 +430,21 @@ class orient:
         inputNodeCnt = len(self.pixelVecLL[0])
         outputNodeCnt = len(rot)
 
-        stime = time.time()
+        print "Alpha: ",alpha
+        print "Iteration: ", iterationCnt
+        print "Hidden Layer nodes: ",hiddenNodeCnt
+
+        s1time = time.time()
         self.trainNNet(hiddenNodeCnt, alpha, iterationCnt, inputNodeCnt, outputNodeCnt)
-        etime = time.time()
-        print "Time for train nnet= ", etime - stime , (etime - stime)/60
+        e1time = time.time()
+        print "Time for train nnet= ", e1time - s1time , (e1time - s1time)/60
 
         stime = time.time()
         self.testNNet(testFile, hiddenNodeCnt, alpha, iterationCnt, inputNodeCnt, outputNodeCnt)
         etime = time.time()
         print "Time for test nnet= ", etime - stime , (etime - stime)/60
+
+        print "Tota; Time: " , etime - s1time, (etime - s1time) /60
 
 #MAIN PROGRAM
        
@@ -383,14 +471,15 @@ elif method == "adaboost":
         sys.exit()
 
     stumps = int(sys.argv[4])
-    #stime = time.time()
+    stime = time.time()
     orientObj.buildRotationMatrix(stumps)
-    #etime = time.time()
-    #s1time = time.time()
+    etime = time.time()
+    s1time = time.time()
     orientObj.testAdaboost(testFile,stumps)
-    #e1time = time.time()
-    #print "orientObj.buildRotationMatrix",etime - stime
-    #print "orientObj.testAdaboost", e1time - s1time
+    e1time = time.time()
+    print "orientObj.buildRotationMatrix",etime - stime, (etime - stime) / 60
+    print "orientObj.testAdaboost", e1time - s1time, (e1time - s1time) / 60
+    print "Total Time: ", e1time - stime, (e1time - stime) / 60
     orientObj.printConfusionMatrix()
 
 elif method == 'nnet':
