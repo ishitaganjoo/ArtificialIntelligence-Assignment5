@@ -65,7 +65,7 @@
 #   For each method we calculate the confusion matrix and print it at the end
 #
 # Output
-#   Please refer the output.txt file for confusion matrix and other details
+#   Please refer the output files for confusion matrix and other details
 #
 ####################################################################################
 
@@ -76,6 +76,7 @@ from random import randint
 from random import randrange
 import math
 import time
+import pickle
 
 def dd():
     return defaultdict(int)
@@ -107,7 +108,7 @@ class orient:
             idx += 1
 
     def nearest(self, testFile):
-        fpOut = open("output.txt", 'w')
+        fpOut = open("outputNearest.txt", 'w')
         fp = open(testFile, 'r')
         totalCount = 0
         correctCount = 0
@@ -143,6 +144,11 @@ class orient:
         print "Accuracy is:", (correctCount/float(totalCount)) * 100
 
     def printConfusionMatrix(self):
+        print ""
+        print ""
+        print "Confusion Matrix"
+        print ""
+
         print " ".ljust(15) + "0".ljust(15) + "90".ljust(15) + "180".ljust(15) + "270".ljust(15)
         print "0".ljust(15) + str(self.confusionMatrix[0][0]).ljust(15) \
                             + str(self.confusionMatrix[0][90]).ljust(15) \
@@ -230,7 +236,7 @@ class orient:
                         
     def testAdaboost(self,testFile,stumps):
         #print "In testAdaboost"
-        fpOut = open("output.txt", 'w')
+        fpOut = open("outputAdaBoost.txt", 'w')
         rot = [0,90,180,270]
         correctCount = 0
         totalCount = 0
@@ -382,7 +388,7 @@ class orient:
     def testNNet(self, testFile, hiddenNodeCnt, alpha, iterationCnt, inputNodeCnt, outputNodeCnt):
         rot = [0, 90, 180, 270]
         actD = {}
-        fpOut = open("output.txt", 'w')
+        fpOut = open("outputNNet.txt", 'w')
         fp = open(testFile, 'r')
         totalCnt = 0
         accurateCnt = 0
@@ -489,4 +495,22 @@ elif method == 'nnet':
 
     hiddenNodeCnt = int(sys.argv[4])
     orientObj.nnet(testFile,hiddenNodeCnt)
+    orientObj.printConfusionMatrix()
+    #pickle.dump(orientObj , open("model_file", "wb"))
+
+elif method == "best":
+    if len(sys.argv) < 5:
+        print "Enter valid hidden count..Exiting!!"
+        sys.exit()
+
+    model_file = sys.argv[4]
+    orientObj = pickle.load(open(model_file, "rb"))
+
+    rot = [0, 90, 180, 270]
+    alpha = 0.1
+    iterationCnt = 3
+    inputNodeCnt = 192
+    outputNodeCnt = len(rot)
+    hiddenNodeCnt = 3
+    orientObj.testNNet(testFile, hiddenNodeCnt, alpha, iterationCnt, inputNodeCnt, outputNodeCnt)
     orientObj.printConfusionMatrix()
